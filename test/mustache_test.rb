@@ -362,7 +362,7 @@ data
       end
 
       def each *args, &block
-        @people.each *args, &block
+        @people.each(*args, &block)
       end
     end
 
@@ -443,6 +443,16 @@ Benvolio is 15
     end
   end
 
+  def test_found_in_nested_context_when_asked_to_raise
+    instance = Mustache.new
+    instance.raise_on_context_miss = true
+
+    instance[:item] = { :list => [ { :value => 1235, :deep_list => [{:x => 'y'}]}] }
+
+    instance.template = '{{#item.list}}{{#deep_list}}{{value}}{{/deep_list}}{{/item.list}}'
+    assert_equal '1235', instance.render
+  end
+
   def test_knows_when_its_been_compiled_when_set_with_string
     klass = Class.new(Mustache)
 
@@ -496,6 +506,24 @@ Benvolio is 15
     assert_equal 1, view.calls
   end
 
+  def test_sections_returning_lambdas_get_called_dynamically_with_text
+    view = Mustache.new
+    view.template       = '{{name}}'
+    view[:name]         = lambda { '{{dynamic_name}}' }
+    view[:dynamic_name] = 'Chris'
+
+    assert_equal "Chris", view.render.chomp
+  end
+
+  def test_sections_returning_lambdas_get_not_called_dynamically_with_text_if_static
+    view = Mustache.new :static_lambdas => true
+    view.template       = '{{name}}'
+    view[:name]         = lambda { '{{dynamic_name}}' }
+    view[:dynamic_name] = 'Chris'
+
+    assert_equal "{{dynamic_name}}", view.render.chomp
+  end
+
   def test_sections_which_refer_to_unary_method_call_them_as_proc
     kls = Class.new(Mustache) do
       def unary_method(arg)
@@ -531,7 +559,7 @@ Benvolio is 15
 
   def test_liberal_tag_names_in_class
     assert_equal <<-end_liberal, Liberal.render
-kevin j sheurs
+kevin j sheurs 123 Somewhere St
 end_liberal
   end
 
